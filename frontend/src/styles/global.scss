@@ -1,0 +1,59 @@
+/* styles/global.scss - 全局样式（非 scoped） */
+* { box-sizing: border-box; }
+html, body, #app {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+  min-height: 100vh;
+  background: $bg-body;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC",
+    "Helvetica Neue", Arial, "Microsoft YaHei", sans-serif;
+  color: #303133;
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: $color-primary; text-decoration: none; }
+
+/* 滚动条美化 */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: #d9dde3;
+  border-radius: 4px;
+  &:hover { background: #b1b5bd; }
+}
+
+/* 通用卡片 */
+.app-card {
+  background: $bg-card;
+  border-radius: $border-radius;
+  box-shadow: $shadow-card;
+  padding: $gap;
+}
+
+/* 通用 flex 布局工具类 */
+.flex-row { display: flex; flex-direction: row; align-items: center; }
+.flex-col { display: flex; flex-direction: column; }
+.flex-1 { flex: 1; }
+.flex-between { display: flex; justify-content: space-between; align-items: center; }
+.gap-sm { gap: $gap-sm; }
+.gap-md { gap: $gap; }
+
+/* 标题文字截断 */
+.ellipsis {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.ellipsis-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* 响应式断点：移动端 <768px */
+@media (max-width: $breakpoint-mobile) {
+  .app-card { padding: $gap-sm; border-radius: $border-radius-sm; }
+}

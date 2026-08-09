@@ -1,0 +1,31 @@
+{
+  "name": "1688-image-generator-web",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "1688电商主图&详情图生成工具 - Vue3 + TS + Element Plus 前端管理界面",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc --noEmit && vite build",
+    "preview": "vite preview --port 4173"
+  },
+  "dependencies": {
+    "vue": "^3.4.38",
+    "vue-router": "^4.4.3",
+    "pinia": "^2.2.2",
+    "element-plus": "^2.8.0",
+    "@element-plus/icons-vue": "^2.3.1",
+    "axios": "^1.7.4",
+    "jszip": "^3.10.1",
+    "file-saver": "^2.0.5"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.1.2",
+    "vite": "^5.4.2",
+    "typescript": "^5.5.4",
+    "vue-tsc": "^2.0.29",
+    "sass": "^1.77.8",
+    "@types/node": "^22.4.1",
+    "@types/file-saver": "^2.0.7"
+  }
+}

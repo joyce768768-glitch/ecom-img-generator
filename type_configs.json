@@ -1,0 +1,153 @@
+{
+  "version": 1,
+  "types": [
+    {
+      "type_id": "hanger_default",
+      "type_name": "衣架",
+      "default_title": "防滑无痕衣架家用挂衣架子衣柜挂衣批发",
+      "titles": [
+        "防滑无痕衣架家用挂衣架子衣柜挂衣批发",
+        "不锈钢衣架子加粗加厚成人防滑晾晒衣架",
+        "植绒衣架家用无痕防肩角衣柜收纳整理",
+        "实木衣架服装店酒店木质挂衣架批发",
+        "塑料衣架成人儿童两用防滑晾晒衣挂"
+      ],
+      "materials": [
+        "ABS塑料",
+        "PP塑料",
+        "不锈钢",
+        "实木榉木",
+        "实木荷木",
+        "竹制",
+        "植绒",
+        "硅胶防滑"
+      ],
+      "specs": [
+        "成人款 40cm",
+        "成人款 42cm",
+        "儿童款 30cm",
+        "加粗款 1.2cm管径"
+      ],
+      "colors": [
+        "象牙白",
+        "典雅黑",
+        "原木色",
+        "樱花粉",
+        "薄荷绿",
+        "深空灰",
+        "香槟金"
+      ],
+      "features": [
+        "防滑设计",
+        "无痕防肩角",
+        "晾晒防风挂钩",
+        "360度旋转挂钩",
+        "叠挂省空间",
+        "干湿两用",
+        "防滑无痕设计"
+      ],
+      "default_selected_features": [
+        "防滑设计",
+        "无痕防肩角",
+        "360度旋转挂钩"
+      ],
+      "system_extra_prompt": "Emphasize the hanger's load-bearing capacity, material durability, and wardrobe organizational benefits. Avoid cartoonish, toy-like, or overly artistic presentations that would not be suitable for an e-commerce 1688 wholesale product listing.",
+      "main_scenes": {
+        "main_1": {
+          "key": "main_1",
+          "scene_cn": "白底正面全景",
+          "scene_en": "白色",
+          "size": "main"
+        },
+        "main_2": {
+          "key": "main_2",
+          "scene_cn": "11",
+          "scene_en": "11",
+          "size": ""
+        },
+        "main_3": {
+          "key": "main_3",
+          "scene_cn": "22",
+          "scene_en": "22",
+          "size": ""
+        },
+        "main_4": {
+          "key": "main_4",
+          "scene_cn": "33",
+          "scene_en": "33",
+          "size": ""
+        },
+        "main_5": {
+          "key": "main_5",
+          "scene_cn": "44",
+          "scene_en": "44",
+          "size": ""
+        }
+      },
+      "detail_scenes": {
+        "detail_1": {
+          "key": "detail_1",
+          "scene_cn": "首屏KV·三卖点",
+          "scene_en": "Hero banner layout, hanger product main visual with 3 core selling points icons around, premium e-commerce detail page header",
+          "size": "detail"
+        },
+        "detail_2": {
+          "key": "detail_2",
+          "scene_cn": "材质解析",
+          "scene_en": "Material anatomy infographic style, label callouts pointing to ABS plastic body, anti-slip rubber, metal hook parts",
+          "size": "detail"
+        },
+        "detail_3": {
+          "key": "detail_3",
+          "scene_cn": "尺寸规格图",
+          "scene_en": "Product dimension diagram, hanger silhouette with size markups 40cm width x 22cm height, technical drawing style",
+          "size": "detail"
+        },
+        "detail_4": {
+          "key": "detail_4",
+          "scene_cn": "承重测试",
+          "scene_en": "Load-bearing test scene, hanger hanging heavy winter coat to show strength, stress test visual",
+          "size": "detail"
+        },
+        "detail_5": {
+          "key": "detail_5",
+          "scene_cn": "防滑效果对比",
+          "scene_en": "Side-by-side comparison, left non-slip hanger holds clothes firmly vs right regular hanger slipping off",
+          "size": "detail"
+        },
+        "detail_6": {
+          "key": "detail_6",
+          "scene_cn": "衣柜收纳场景",
+          "scene_en": "Neat organized closet scene, multiple hangers stacked space-saving, tidy wardrobe interior",
+          "size": "detail"
+        },
+        "detail_7": {
+          "key": "detail_7",
+          "scene_cn": "干湿两用场景",
+          "scene_en": "Split scene composition, left dry clothes hanging indoor, right wet laundry outdoor drying",
+          "size": "detail"
+        },
+        "detail_8": {
+          "key": "detail_8",
+          "scene_cn": "颜色款式全览",
+          "scene_en": "Color swatch palette display, all 7 colors of hangers arranged with color name labels",
+          "size": "detail"
+        },
+        "detail_9": {
+          "key": "detail_9",
+          "scene_cn": "人群场景矩阵",
+          "scene_en": "Icon grid matrix, scenarios: home/laundry/dorm/clothing store, user groups: adult/children/shop owner",
+          "size": "detail"
+        },
+        "detail_10": {
+          "key": "detail_10",
+          "scene_cn": "批发包装说明",
+          "scene_en": "Wholesale bulk packaging display, 10pcs/20pcs/50pcs pack options stacked with price tag style labels",
+          "size": "detail"
+        }
+      },
+      "created_at": 1786075368.1733382,
+      "updated_at": 1786095266.4992042
+    }
+  ]
+}

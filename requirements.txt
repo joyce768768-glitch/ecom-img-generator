@@ -1,0 +1,31 @@
+# ============================================================
+# requirements.txt - 电商主图/详情图生成Agent 依赖清单
+# 安装：pip install -r requirements.txt
+# ============================================================
+
+# 1. 环境变量管理
+python-dotenv>=1.0.0
+
+# 2. HTTP请求（Ollama本地调用 + 云端图片下载）
+requests>=2.31.0
+
+# 3. 图像处理：本地base64转存 + 强制resize到1688规范尺寸
+Pillow>=10.0.0
+
+# 4. FastAPI Web后端 + Vue前端交互
+fastapi>=0.111.0
+uvicorn[standard]>=0.30.0
+pydantic>=2.0.0
+python-multipart>=0.0.9
+
+# ============================================================
+# 以下为可选依赖（按所选模型按需安装，未使用可不装）
+# ============================================================
+
+# 5. 通义万相（阿里DashScope平台）云端API SDK
+# 使用 --model tongyi_wanxiang 时需要
+dashscope>=1.20.0
+
+# 6. DALL·E3（OpenAI）云端API SDK
+# 使用 --model dalle3 时需要
+openai>=1.30.0

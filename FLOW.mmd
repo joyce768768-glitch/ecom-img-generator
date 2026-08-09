@@ -1,0 +1,67 @@
+# 1688电商主图/详情图生成Agent - 完整业务流程图
+
+```mermaid
+flowchart TD
+    %% ========== 颜色样式 ==========
+    classDef entry fill:#2563eb,stroke:#1d4ed8,color:#fff
+    classDef config fill:#7c3aed,stroke:#6d28d9,color:#fff
+    classDef check fill:#dc2626,stroke:#b91c1c,color:#fff
+    classDef prompt fill:#059669,stroke:#047857,color:#fff
+    classDef cloud fill:#ea580c,stroke:#c2410c,color:#fff
+    classDef local fill:#0891b2,stroke:#0e7490,color:#fff
+    classDef storage fill:#be185d,stroke:#9d174d,color:#fff
+    classDef output fill:#475569,stroke:#334155,color:#fff
+
+    %% ========== 入口：CLI参数解析 ==========
+    A[/CLI入口: python main.py<br/>--model xxx --only main_1,.../]:::entry --> B[解析 args: 模型/范围/输出目录/--dry-run]
+    A -- "--list" --> A1[打印15个scene_key后退出]:::output
+
+    %% ========== 配置层 ==========
+    B --> C[加载 .env 与 config.py<br/>读取: 模型密钥/尺寸常量/类目白名单]:::config
+    C --> D[构造 ProductInfo 硬编码商品数据<br/>=衣架 + 标题/材质/规格/颜色/卖点]:::config
+
+    %% ========== 参数校验 ==========
+    D --> E{白名单校验<br/>validate_product_params}:::check
+    E -- 不通过 --> E1[抛出 ValueError<br/>禁止编造参数<br/>退出码=2]:::check
+    E -- 通过 --> F[通过 ✓]
+
+    %% ========== Prompt分层组装 ==========
+    F --> G[实例化 PromptBuilder<br/>预构建「商品公共变量块」全局复用]:::prompt
+    G --> H[构建15条完整Prompt<br/>=①System全局约束<br/>+②商品公共变量<br/>+③单图场景短句<br/>+④负面提示词]:::prompt
+    H --> I{--only 过滤}
+    I -- 指定key --> I1[仅保留指定场景子集]
+    I -- 默认 --> I2[保留全部15条]
+    I1 --> J
+    I2 --> J[待生成队列: N条 BuiltPrompt]
+
+    %% ========== DRY-RUN分支 ==========
+    J --> K{--dry-run?}
+    K -- 是 --> K1[逐条打印完整Prompt<br/>跳过模型调用<br/>输出模拟路径]:::output
+    K1 --> END[汇总输出日志]:::output
+
+    %% ========== 模型层：工厂分支 ==========
+    K -- 否 --> L[create_image_client 工厂<br/>按ImageModel枚举分发]
+
+    L --> L1{模型类型?}
+    %% 云端分支
+    L1 -- 通义万相 --> M1[TongyiWanxiangClient<br/>DashScope API<br/>wanx-v1]:::cloud
+    L1 -- DALL·E3 --> M2[Dalle3Client<br/>OpenAI API<br/>hd+1024映射]:::cloud
+    %% 本地分支
+    L1 -- Ollama SDXL --> N1[OllamaSDXLClient<br/>本地 11434/generate<br/>stable-diffusion]:::local
+    L1 -- Ollama Flux --> N2[OllamaFluxClient<br/>本地 11434/generate<br/>flux (SOTA)]:::local
+
+    %% ========== 模型层：统一输出处理 ==========
+    M1 --> O
+    M2 --> O
+    N1 --> O
+    N2 --> O[模型统一出参处理:<br/>下载URL/base64解码<br/>→ 强制 resize 到1688规范]:::storage
+
+    %% ========== 批量调度循环 ==========
+    O --> P[循环调度 for i=1..N<br/>逐条调用 generate_image]
+    P --> Q[每张图日志打印:<br/>完整正向/负面Prompt<br/>调用模型名<br/>图片存储绝对路径]:::output
+    Q --> R[标准化落盘 output/<br/>main_1.png~main_5.png<br/>detail_1.png~detail_10.png]:::storage
+
+    %% ========== 结束 ==========
+    R --> END
+
+```

@@ -1,0 +1,42 @@
+// styles/variables.scss - SCSS 全局变量（通过 vite.config.ts additionalData 自动注入每个 .vue scoped）
+$color-primary: #409EFF;
+$color-success: #67C23A;
+$color-warning: #E6A23C;
+$color-danger:  #F56C6C;
+$color-info:    #909399;
+
+// primary 衍生色
+$primary:         $color-primary;     // 兼容别名
+$primary-light:   #a0cfff;            // primary hover 浅蓝
+
+// 文字色 (Element Plus 默认色板)
+$text-primary:     #303133;   // 一级文字
+$text-secondary:   #606266;   // 二级文字
+$text-placeholder: #c0c4cc;   // 占位符文字
+
+// 背景色
+$bg-body:        #f5f7fa;
+$bg-main:        $bg-body;          // 兼容别名
+$bg-card:        #ffffff;
+$bg-sidebar:     #fafbfc;
+$bg-soft:        #f5f7fa;           // 分组/卡片浅色背景（=bg-body，但语义化）
+
+// 边框
+$border-color:    #e4e7ed;          // 默认边框色
+$border-radius:   8px;
+$border-radius-sm: 4px;
+$radius:          $border-radius;   // 兼容别名
+$radius-sm:       $border-radius-sm;// 兼容别名
+
+// 阴影
+$shadow-card:    0 2px 12px 0 rgba(0, 0, 0, 0.06);
+$shadow-hover:   0 4px 20px 0 rgba(64, 158, 255, 0.12);
+
+// 尺寸 & 间距
+$header-height:  56px;
+$gap:    16px;
+$gap-sm: 12px;
+$gap-md: 16px;     // 中等间隔，默认=gap
+
+// 响应式断点
+$breakpoint-mobile: 768px;
