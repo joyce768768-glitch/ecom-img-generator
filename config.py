@@ -157,16 +157,8 @@ DETAIL_IMAGE_SCENES: Dict[str, Tuple[str, str]] = {
 
 
 # ---------------------------
-# 6. 通用负面提示词（所有图共用）
+# 6. 通用负面提示词（见下方 7.3 电商专用负面词，已替换为更精准版本）
 # ---------------------------
-NEGATIVE_PROMPT = (
-    "blurry, low quality, distorted shape, deformed hanger, broken parts, "
-    "watermark, text overlay, logo, brand name, QR code, "
-    "multiple objects chaos, misaligned, wrong color, "
-    "ugly, cartoon, anime, 3d render unrealistic, "
-    "extra hangers, messy background, clutter, "
-    "chinese characters error, gibberish text, typography mistakes"
-)
 
 
 # ---------------------------
@@ -179,6 +171,43 @@ SYSTEM_PROMPT_BASE = (
     "clean composition suitable for Chinese e-commerce platform, "
     "commercial photography grade, no artistic filters, "
     "product centered, highlight material texture and craftsmanship details"
+)
+
+# ---------------------------
+# 7.1 主图专属System（5张主图800×800，纯白底·产品居中·无模特）
+# ---------------------------
+SYSTEM_PROMPT_MAIN = (
+    "[MAIN IMAGE RULES] 1688 main image specification: "
+    "product centered occupying 70-85% of frame, pure white background (#FFFFFF), "
+    "no shadows, no reflections, no floor, single angle front or 45-degree view, "
+    "absolutely no human body, no model, no mannequin, no hands, "
+    "no text overlay, no watermark, no logo, no price tag, "
+    "single product only, no duplicates, no collage, no split view"
+)
+
+# ---------------------------
+# 7.2 详情图专属System（10张详情图750×1000，允许场景化·细节展示·KV构图）
+# ---------------------------
+SYSTEM_PROMPT_DETAIL = (
+    "[DETAIL IMAGE RULES] 1688 detail image specification: "
+    "scene-styled background allowed (gradient, lifestyle context, material closeup), "
+    "can show structural details, texture zoom-in, functional demonstration, "
+    "visual hierarchy with KV-style composition for first-screen scenes, "
+    "props allowed but product must remain the visual focus, "
+    "no human body, no model, no text overlay, no watermark, "
+    "single product focus, no collage"
+)
+
+# ---------------------------
+# 7.3 电商专用负面词（替换通用负面词，更精准）
+# ---------------------------
+NEGATIVE_PROMPT = (
+    "low quality, blurry, distorted, deformed, ugly, bad anatomy, "
+    "text overlay, watermark, logo, brand name, price tag, QR code, barcode, "
+    "human body, human face, model, mannequin, hand, skin, fingers, "
+    "multiple objects, duplicate, collage, split view, grid layout, "
+    "cartoon, anime, illustration, painting, 3d render, CGI, "
+    "chinese characters, gibberish text, typography, frame, border"
 )
 
 
@@ -270,13 +299,14 @@ def validate_product_params(product: ProductInfo) -> None:
         )
 
     errors: List[str] = []
-    if type_cfg.titles and product.title not in type_cfg.titles:
+    # 空值视为"不设置"，跳过白名单校验（允许留空）
+    if product.title and type_cfg.titles and product.title not in type_cfg.titles:
         errors.append(f"标题不在「{type_cfg.type_name}」白名单内: {product.title}")
-    if type_cfg.materials and product.material not in type_cfg.materials:
+    if product.material and type_cfg.materials and product.material not in type_cfg.materials:
         errors.append(f"材质不在「{type_cfg.type_name}」白名单内: {product.material}")
-    if type_cfg.specs and product.spec not in type_cfg.specs:
+    if product.spec and type_cfg.specs and product.spec not in type_cfg.specs:
         errors.append(f"规格不在「{type_cfg.type_name}」白名单内: {product.spec}")
-    if type_cfg.colors and product.color not in type_cfg.colors:
+    if product.color and type_cfg.colors and product.color not in type_cfg.colors:
         errors.append(f"颜色不在「{type_cfg.type_name}」白名单内: {product.color}")
     if type_cfg.features:
         for f in product.features:

@@ -88,11 +88,13 @@ class BaseImageClient(abc.ABC):
     统一接口：generate_image(prompt, size, negative_prompt, model_name) -> str(本地路径)
     """
 
-    def __init__(self, output_dir: str, ref_img_url: Optional[str] = None):
+    def __init__(self, output_dir: str, ref_img_url: Optional[str] = None, ref_strength: float = 0.5):
         self.output_dir = output_dir
         os.makedirs(output_dir, exist_ok=True)
         self.cfg = ModelConfig()
         self.ref_img_url = ref_img_url  # 参考图 URL（图生图模式）
+        # 参考图影响强度（0-1，仅当 ref_img_url 存在时生效；越大越接近参考图）
+        self.ref_strength = max(0.0, min(1.0, float(ref_strength)))
 
     # --- 子类必须实现 ---
     @abc.abstractmethod
@@ -118,6 +120,38 @@ class BaseImageClient(abc.ABC):
     def _make_save_path(self, file_stem: str) -> str:
         return os.path.join(self.output_dir, f"{file_stem}.png")
 
+    def _ref_to_data_url(self) -> Optional[str]:
+        """把 ref_img_url 转成 base64 data URL。
+
+        阿里云 wanx2.1-imageedit 的 base_image_url 必须公网可访问，
+        127.0.0.1 的本地 URL 云端无法下载。改用文档支持的 base64 data URL 传入。
+        """
+        if not self.ref_img_url:
+            return None
+        url = self.ref_img_url
+        if url.startswith("data:"):
+            return url
+        # http(s) URL / file:// / 本地路径 → 读字节
+        if url.startswith("http"):
+            resp = requests.get(url, timeout=30)
+            resp.raise_for_status()
+            img_bytes = resp.content
+        elif url.startswith("file://"):
+            with open(url[7:], "rb") as f:
+                img_bytes = f.read()
+        else:
+            with open(url, "rb") as f:
+                img_bytes = f.read()
+        b64 = base64.b64encode(img_bytes).decode()
+        # 推断 mime
+        mime = "image/png"
+        if img_bytes[:3] == b"\xff\xd8\xff":
+            mime = "image/jpeg"
+        elif url.lower().endswith((".jpg", ".jpeg")):
+            mime = "image/jpeg"
+        logger.info(f"[imageedit] 参考图已转 base64 data URL: {len(b64)} bytes, mime={mime}")
+        return f"data:{mime};base64,{b64}"
+
 
 # ============================================================
 # 方案A1：通义万相（阿里DashScope）
@@ -128,8 +162,8 @@ class TongyiWanxiangClient(BaseImageClient):
     # wanx-v1 仅支持以下尺寸（宽*高）
     _SUPPORTED_SIZES = ["1024*1024", "720*1280", "1280*720", "768*1152"]
 
-    def __init__(self, output_dir: str, ref_img_url: Optional[str] = None):
-        super().__init__(output_dir, ref_img_url=ref_img_url)
+    def __init__(self, output_dir: str, ref_img_url: Optional[str] = None, ref_strength: float = 0.5):
+        super().__init__(output_dir, ref_img_url=ref_img_url, ref_strength=ref_strength)
         if not self.cfg.DASHSCOPE_API_KEY:
             raise RuntimeError("通义万相未配置密钥，请在.env设置 DASHSCOPE_API_KEY")
         try:
@@ -166,34 +200,51 @@ class TongyiWanxiangClient(BaseImageClient):
         # wanx-v1 不支持 800*800 / 750*1000，映射到最接近的支持尺寸
         size_str = self._map_size(size)
 
-        # 有参考图时用 wanx2.1-t2i-turbo（支持 ref_img），否则用配置的模型
-        use_model = self.cfg.TONGYI_MODEL_NAME
-        if self.ref_img_url:
-            use_model = "wanx2.1-t2i-turbo"
-            logger.info(f"[通义万相] 检测到参考图，切换模型: {self.cfg.TONGYI_MODEL_NAME} → {use_model}")
-
-        logger.info(f"[通义万相] 调用模型: {use_model}, size={size_str} (原始 {size[0]}×{size[1]}), ref_img={'有' if self.ref_img_url else '无'}")
         save_path = self._make_save_path(file_stem)
-
-        extra = {}
-        if negative_prompt:
-            extra["negative_prompt"] = negative_prompt
-        # 传参考图 URL 和影响强度
-        if self.ref_img_url:
-            extra["ref_img"] = self.ref_img_url
-            extra["ref_strength"] = 0.5  # 参考图影响强度（0-1，越大越接近参考图）
-
         actual_key = self.cfg.DASHSCOPE_API_KEY
         logger.info(f"[通义万相] 实际使用 key: 长度={len(actual_key)}, 前10={repr(actual_key[:10])}, 后5={repr(actual_key[-5:])}")
 
-        rsp = ImageSynthesis.call(
-            model=use_model,
-            prompt=prompt,
-            size=size_str,
-            n=1,
-            api_key=actual_key,
-            **extra,
-        )
+        if self.ref_img_url:
+            # ===== 图像编辑模式 =====
+            # 用 wanx2.1-imageedit + description_edit：以参考图为基底，按文本指令修改背景/场景，
+            # 真正保持商品主体（衣架）不变。t2i 模型的 ref_img 只是风格参考，无法保持主体。
+            use_model = "wanx2.1-imageedit"
+            # strength 语义：值越小越接近原图；ref_strength 语义：值越大越接近参考图 → 取反
+            edit_strength = round(1.0 - self.ref_strength, 3)
+            logger.info(
+                f"[通义万相·图像编辑] 检测到参考图，切换模型: {self.cfg.TONGYI_MODEL_NAME} → {use_model}, "
+                f"function=description_edit, ref_strength={self.ref_strength} → strength={edit_strength}, "
+                f"size={size_str} (原始 {size[0]}×{size[1]})"
+            )
+            # base_image_url 必须公网可访问；本地 127.0.0.1 URL 云端无法下载，改用 base64 data URL
+            base_data_url = self._ref_to_data_url()
+            rsp = ImageSynthesis.call(
+                model=use_model,
+                function="description_edit",
+                prompt=prompt,
+                base_image_url=base_data_url,
+                size=size_str,
+                n=1,
+                api_key=actual_key,
+                strength=edit_strength,
+            )
+        else:
+            # ===== 文生图模式 =====
+            use_model = self.cfg.TONGYI_MODEL_NAME
+            logger.info(
+                f"[通义万相·文生图] 调用模型: {use_model}, size={size_str} (原始 {size[0]}×{size[1]})"
+            )
+            extra = {}
+            if negative_prompt:
+                extra["negative_prompt"] = negative_prompt
+            rsp = ImageSynthesis.call(
+                model=use_model,
+                prompt=prompt,
+                size=size_str,
+                n=1,
+                api_key=actual_key,
+                **extra,
+            )
 
         if rsp.status_code != 200:
             raise RuntimeError(f"通义万相调用失败 code={rsp.status_code}, msg={rsp.message}")
@@ -213,8 +264,8 @@ class TongyiWanxiangClient(BaseImageClient):
 class Dalle3Client(BaseImageClient):
     """OpenAI DALL·E3，通用能力强"""
 
-    def __init__(self, output_dir: str, ref_img_url: Optional[str] = None):
-        super().__init__(output_dir, ref_img_url=ref_img_url)
+    def __init__(self, output_dir: str, ref_img_url: Optional[str] = None, ref_strength: float = 0.5):
+        super().__init__(output_dir, ref_img_url=ref_img_url, ref_strength=ref_strength)
         if not self.cfg.OPENAI_API_KEY:
             raise RuntimeError("DALL·E3未配置密钥，请在.env设置 OPENAI_API_KEY")
         try:
@@ -271,8 +322,8 @@ class Dalle3Client(BaseImageClient):
 class OllamaSDXLClient(BaseImageClient):
     """Ollama 本地 stable-diffusion，低成本本地推理"""
 
-    def __init__(self, output_dir: str, ref_img_url: Optional[str] = None):
-        super().__init__(output_dir, ref_img_url=ref_img_url)
+    def __init__(self, output_dir: str, ref_img_url: Optional[str] = None, ref_strength: float = 0.5):
+        super().__init__(output_dir, ref_img_url=ref_img_url, ref_strength=ref_strength)
         self.base_url = self.cfg.OLLAMA_BASE_URL.rstrip("/")
         self._check_service_alive()
 
@@ -332,8 +383,8 @@ class OllamaSDXLClient(BaseImageClient):
 class OllamaFluxClient(BaseImageClient):
     """Ollama 本地 Flux，目前本地开源生图SOTA"""
 
-    def __init__(self, output_dir: str, ref_img_url: Optional[str] = None):
-        super().__init__(output_dir, ref_img_url=ref_img_url)
+    def __init__(self, output_dir: str, ref_img_url: Optional[str] = None, ref_strength: float = 0.5):
+        super().__init__(output_dir, ref_img_url=ref_img_url, ref_strength=ref_strength)
         self.base_url = self.cfg.OLLAMA_BASE_URL.rstrip("/")
         self._check_service_alive()
 
@@ -392,7 +443,12 @@ class OllamaFluxClient(BaseImageClient):
 # ============================================================
 # 工厂函数：根据模型枚举 → 具体客户端实例（业务层唯一入口）
 # ============================================================
-def create_image_client(model_enum, output_dir: str, ref_img_url: Optional[str] = None) -> BaseImageClient:
+def create_image_client(
+    model_enum,
+    output_dir: str,
+    ref_img_url: Optional[str] = None,
+    ref_strength: float = 0.5,
+) -> BaseImageClient:
     """
     模型客户端工厂（切换模型仅改config或--model参数，业务代码零改动）
     """
@@ -406,4 +462,4 @@ def create_image_client(model_enum, output_dir: str, ref_img_url: Optional[str] 
     }
     if model_enum not in mapping:
         raise ValueError(f"未支持的模型: {model_enum}, 可用: {list(mapping.keys())}")
-    return mapping[model_enum](output_dir, ref_img_url=ref_img_url)
+    return mapping[model_enum](output_dir, ref_img_url=ref_img_url, ref_strength=ref_strength)

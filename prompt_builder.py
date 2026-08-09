@@ -20,6 +20,8 @@ from config import (
     NEGATIVE_PROMPT,
     ProductInfo,
     SYSTEM_PROMPT_BASE,
+    SYSTEM_PROMPT_MAIN,
+    SYSTEM_PROMPT_DETAIL,
 )
 from type_configs import TypeConfig, get_type_manager
 from translator import translate_scene_cn_to_en
@@ -91,10 +93,10 @@ class PromptBuilder:
         feat_str = ", ".join(feat_raw) if feat_raw else "(none)"
         lines = [
             f"Product category type: {self.type_cfg.type_name}",
-            f"Product title (subject): {self.product.title}",
-            f"Material: {self.product.material}",
-            f"Specification: {self.product.spec}",
-            f"Main color: {self.product.color}",
+            f"Product title (subject): {self.product.title or '(not specified)'}",
+            f"Material: {self.product.material or '(not specified)'}",
+            f"Specification: {self.product.spec or '(not specified)'}",
+            f"Main color: {self.product.color or '(not specified)'}",
             f"Key features: {feat_str}",
         ]
         return "; ".join(lines)
@@ -141,17 +143,22 @@ class PromptBuilder:
         if not scene_en and scene_cfg.scene_cn:
             scene_en = translate_scene_cn_to_en(scene_cfg.scene_cn)
 
-        # 完整正向 = ① System全局 + ①.5 类目追加 + ② 公共变量 + ②.5 参考图说明 + ③ 单图场景
+        # 完整正向 = ① System全局 + ①.5 类目追加 + ①.6 主图/详情图专属规则 + ② 公共变量 + ②.5 参考图说明 + ③ 单图场景
+        # 主图用 SYSTEM_PROMPT_MAIN，详情图用 SYSTEM_PROMPT_DETAIL，差异化风格约束
+        scene_specific_system = SYSTEM_PROMPT_MAIN if size_type == "main" else SYSTEM_PROMPT_DETAIL
         positive_parts = [
-            f"[SYSTEM] {self._build_full_system_block()}",
+            f"[SYSTEM] {self._build_full_system_block()} {scene_specific_system}",
             f"[PRODUCT] {self._product_common_block}",
         ]
         # ②.5 参考图说明（如果有上传原始图）
+        # 走 wanx2.1-imageedit 图像编辑模式：prompt 是对参考图的"编辑指令"，
+        # 不是"从零生成"。所以这里要明确：产品主体保持不变，[SCENE] 只作用于背景/环境。
         if self._original_image:
             positive_parts.append(
-                f"[REFERENCE] Design based on the uploaded original product image. "
-                f"Keep the product appearance, shape, color and texture consistent with the original. "
-                f"The original image is the authoritative reference for product identity."
+                f"[REFERENCE] The base image is the uploaded original product photo. "
+                f"Keep the product itself completely unchanged: identical shape, color, texture and proportions. "
+                f"Treat the following [SCENE] as an edit instruction applied to the background/environment only. "
+                f"The product must remain the central subject, occupying 70-85% of the frame."
             )
         positive_parts.append(f"[SCENE] {scene_en}")
         positive = " ".join(positive_parts)

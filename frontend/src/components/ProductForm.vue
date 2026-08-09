@@ -53,12 +53,13 @@
             style="width: 100%"
             filterable
           >
-            <el-option
-              v-for="t in genStore.whitelist.titles"
-              :key="t"
-              :label="t"
-              :value="t"
-            />
+            <el-option label="不设置" value="" />
+          <el-option
+            v-for="t in genStore.whitelist.titles"
+            :key="t"
+            :label="t"
+            :value="t"
+          />
           </el-select>
           <el-alert
             v-if="typesStore.hasSelected && genStore.whitelist.titles.length === 0"
@@ -73,12 +74,13 @@
         <div class="row-2col">
           <el-form-item label="材质" prop="material">
             <el-select v-model="formState.material" placeholder="白名单内材质" style="width: 100%">
-              <el-option
-                v-for="m in genStore.whitelist.materials"
-                :key="m"
-                :label="m"
-                :value="m"
-              />
+              <el-option label="不设置" value="" />
+            <el-option
+              v-for="m in genStore.whitelist.materials"
+              :key="m"
+              :label="m"
+              :value="m"
+            />
             </el-select>
             <el-alert
               v-if="typesStore.hasSelected && genStore.whitelist.materials.length === 0"
@@ -92,12 +94,13 @@
 
           <el-form-item label="规格" prop="spec">
             <el-select v-model="formState.spec" placeholder="白名单内规格" style="width: 100%">
-              <el-option
-                v-for="s in genStore.whitelist.specs"
-                :key="s"
-                :label="s"
-                :value="s"
-              />
+              <el-option label="不设置" value="" />
+            <el-option
+              v-for="s in genStore.whitelist.specs"
+              :key="s"
+              :label="s"
+              :value="s"
+            />
             </el-select>
             <el-alert
               v-if="typesStore.hasSelected && genStore.whitelist.specs.length === 0"
@@ -113,12 +116,13 @@
         <div class="row-2col">
           <el-form-item label="颜色" prop="color">
             <el-select v-model="formState.color" placeholder="选择主颜色" style="width: 100%">
-              <el-option
-                v-for="c in genStore.whitelist.colors"
-                :key="c"
-                :label="c"
-                :value="c"
-              >
+              <el-option label="不设置" value="" />
+            <el-option
+              v-for="c in genStore.whitelist.colors"
+              :key="c"
+              :label="c"
+              :value="c"
+            >
                 <span style="display:inline-block;vertical-align:middle;">
                   <span
                     class="color-dot"
@@ -193,6 +197,20 @@
             active-text="仅输出Prompt占位图（零成本验证）"
             inactive-text="真实调用API生成图片"
           />
+        </el-form-item>
+
+        <el-form-item v-if="genStore.originalImage" label="参考强度">
+          <el-slider
+            v-model="formState.refStrength"
+            :min="0"
+            :max="1"
+            :step="0.1"
+            :marks="{ 0.2: '风格', 0.5: '平衡', 0.8: '复刻' }"
+            :format-tooltip="(val: number) => `参考强度 ${val}`"
+          />
+          <div class="form-hint" style="margin-top: 4px; font-size: 12px; color: #909399;">
+            数值越大，生成图越接近参考图（0=纯文生图风格, 1=严格复刻商品外观）
+          </div>
         </el-form-item>
 
         <el-form-item label="主图模板">
@@ -426,6 +444,7 @@ interface LocalFormState {
   features: string[]
   model: string
   dryRun: boolean
+  refStrength: number
 }
 const formState = reactive<LocalFormState>({
   title: genStore.product.title,
@@ -435,10 +454,11 @@ const formState = reactive<LocalFormState>({
   features: [...genStore.product.features],
   model: genStore.currentModel,
   dryRun: genStore.dryRun,
+  refStrength: genStore.refStrength,
 })
 
 watch(
-  () => [genStore.product, genStore.currentModel, genStore.dryRun],
+  () => [genStore.product, genStore.currentModel, genStore.dryRun, genStore.refStrength],
   () => {
     formState.title = genStore.product.title
     formState.material = genStore.product.material
@@ -447,6 +467,7 @@ watch(
     formState.features = [...genStore.product.features]
     formState.model = genStore.currentModel
     formState.dryRun = genStore.dryRun
+    formState.refStrength = genStore.refStrength
   },
   { deep: true },
 )
@@ -610,10 +631,7 @@ async function resetFromBackend(): Promise<void> {
 }
 
 const formRules: FormRules = {
-  title: [{ required: true, message: '请选择商品标题', trigger: 'change' }],
-  material: [{ required: true, message: '请选择材质', trigger: 'change' }],
-  spec: [{ required: true, message: '请选择规格', trigger: 'change' }],
-  color: [{ required: true, message: '请选择颜色', trigger: 'change' }],
+  // 所有字段均为可选（允许"不设置"），无必填校验
 }
 
 function colorHex(cnName: string): string {
@@ -642,6 +660,7 @@ async function handleSubmit(): Promise<void> {
   genStore.product.features = [...formState.features]
   genStore.currentModel = formState.model
   genStore.dryRun = formState.dryRun
+  genStore.refStrength = formState.refStrength
 
   emit('submit')
   await genStore.startGenerate()

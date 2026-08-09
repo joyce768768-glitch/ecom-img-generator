@@ -3,7 +3,7 @@
 > 1688 电商主图 & 详情图 AI 批量生成工具 — 上传商品原始图，一键生成 5 张主图 + 10 张详情图
 
 **项目开始时间**：2026-08-07  
-**当前版本**：v1.0.0  
+**当前版本**：v1.1.0  
 **许可证**：MIT
 
 ---
@@ -13,7 +13,10 @@
 | 功能 | 说明 |
 |------|------|
 | **15 张模板批量生成** | 5 张主图（800×800）+ 10 张详情图（750×1000），覆盖电商全场景 |
-| **商品原始图参考** | 上传一张商品原始图，AI 基于参考图生成所有场景图，保持商品一致性 |
+| **商品原始图参考** | 上传商品原始图，自动 rembg 抠图去背景，AI 以参考图为主体生成所有场景图，真正保持商品主体一致 |
+| **ref_strength 滑块** | 前端调节参考图影响强度（0-1），值越大商品主体保留越完整 |
+| **主图/详情图差异化** | 主图纯白底居中、详情图场景化，两套 System Prompt 分层约束 |
+| **参数"不设置"选项** | 颜色/规格/材质/标题/卖点均可留空，仅按参考图出图 |
 | **类型化配置** | 每个商品类型（如衣架、收纳盒）独立维护白名单、场景模板、System Prompt |
 | **中文填写 + 自动翻译** | 配置中心填中文场景说明，系统调用 Ollama gemma3 自动翻译为英文 Prompt |
 | **双模出图** | 云端（通义万相 / DALL·E 3）或本地（Ollama SDXL / Flux）自由切换 |
@@ -28,7 +31,8 @@
 ### 后端（Python）
 - **FastAPI** — Web API 服务，支持异步任务轮询
 - **Pydantic v2** — 请求/响应严格类型校验
-- **dashscope SDK** — 通义万相图生图（wanx2.1-t2i-turbo + ref_img）
+- **dashscope SDK** — 通义万相图像编辑（wanx2.1-imageedit + description_edit，保持商品主体）
+- **rembg** — 参考图自动抠图去背景，提升商品主体识别准确性
 - **Pillow** — 图片下载、resize、强制归正到 1688 规范尺寸
 - **Ollama** — 本地翻译（gemma3）+ 本地出图（SDXL / Flux）
 
@@ -53,7 +57,7 @@
 ┌──────────────────────┴──────────────────────────────────┐
 │                   后端 (FastAPI + Python)                 │
 │  server.py      — API 路由 + 任务调度 + 轮询状态           │
-│  prompt_builder — 4层 Prompt 拼装 (System/Product/Ref/Scene)│
+│  prompt_builder — 5层 Prompt 拼装 (System/Category/Product/Ref/Scene) │
 │  image_client   — 工厂模式，4 种模型客户端自由切换         │
 │  config.py      — .env 加载 + ModelConfig 运行时刷新       │
 │  translator.py  — Ollama gemma3 中→英翻译                 │
@@ -61,13 +65,14 @@
 └─────────────────────────────────────────────────────────┘
 ```
 
-### 四层 Prompt 拼装
+### 五层 Prompt 拼装
 
 ```
-[SYSTEM]    1688 B2B 电商摄影风格全局约束 + 类目专属 System Prompt
-[PRODUCT]   商品标题 / 材质 / 规格 / 颜色 / 核心卖点
-[REFERENCE] 参考图说明（有上传时）— 保持商品外观一致性
-[SCENE]     单图场景英文 Prompt（如 "White background studio shot..."）
+[SYSTEM]      1688 B2B 电商摄影风格全局约束（主图/详情图差异化 System Prompt）
+[CATEGORY]    类目专属 System Extra（如衣架强调承重，配置中心可改）
+[PRODUCT]     商品标题 / 材质 / 规格 / 颜色 / 核心卖点（均可"不设置"留空）
+[REFERENCE]   参考图编辑指令（有上传时）— 走 wanx2.1-imageedit，保持商品主体不变，只改背景/场景
+[SCENE]       单图场景英文 Prompt（如 "White background studio shot..."）
 ```
 
 ---
@@ -146,7 +151,7 @@ npm run dev
 | 模型 | 类型 | 模型名 | 参考图 | 说明 |
 |------|------|--------|--------|------|
 | 通义万相 | 云端 | wanx-v1 | ❌ 文生图 | 电商推荐，画风写实 |
-| 通义万相+ | 云端 | wanx2.1-t2i-turbo | ✅ 图生图 | 上传参考图时自动切换，支持 ref_img |
+| 通义万相+ | 云端 | wanx2.1-imageedit | ✅ 图像编辑 | 上传参考图时自动切换，description_edit + strength 保持商品主体 |
 | DALL·E 3 | 云端 | dall-e-3 | ❌ | OpenAI，英文 Prompt 效果佳 |
 | Ollama SDXL | 本地 | stable-diffusion | ❌ | 需 4GB+ 显存 |
 | Ollama Flux | 本地 | flux | ❌ | 需 8GB+ 显存，本地画质 SOTA |

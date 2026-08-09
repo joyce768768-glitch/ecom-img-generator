@@ -187,6 +187,7 @@ export interface GenerateReqBody {
   extra_negative: string
   product: ProductForm
   original_image?: string
+  ref_strength?: number
 }
 
 export interface GenerateResp {

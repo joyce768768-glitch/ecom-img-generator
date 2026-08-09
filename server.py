@@ -146,6 +146,12 @@ class GenerateRequest(BaseModel):
         default=None,
         description="商品原始图 base64 data URL，作为15张图的设计参考",
     )
+    ref_strength: float = Field(
+        default=0.5,
+        ge=0.0,
+        le=1.0,
+        description="参考图影响强度（0-1，仅当 original_image 存在时生效；越大越接近参考图）",
+    )
 
 
 class TypeCreateRequest(BaseModel):
@@ -262,6 +268,7 @@ def _run_generation_task(
     product: ProductInfo,
     extra_negative: str = "",
     original_image: Optional[str] = None,
+    ref_strength: float = 0.5,
 ) -> None:
     try:
         state.status = "running"
@@ -269,7 +276,7 @@ def _run_generation_task(
             "INFO",
             f"任务启动: type={state.type_name}({state.type_id}), "
             f"model={state.model}, dry_run={state.dry_run}"
-            + (", 参考图=有" if original_image else ", 参考图=无")
+            + (f", 参考图=有, ref_strength={ref_strength}" if original_image else ", 参考图=无")
         )
 
         # 1. Prompt 构建（带白名单校验）
@@ -295,9 +302,30 @@ def _run_generation_task(
                 # 解析 data URL: data:image/png;base64,xxxx
                 header, b64data = original_image.split(",", 1)
                 img_bytes = b64mod.b64decode(b64data)
+
+                # 1.5.1 rembg 自动抠图：去除原背景干扰，只保留商品主体
+                #   抠图失败时降级使用原图，不阻断流程
+                try:
+                    # 设置模型缓存目录到项目内（避免沙箱限制 ~/.u2net）
+                    os.environ.setdefault(
+                        "U2NET_HOME",
+                        os.path.join(os.path.dirname(os.path.abspath(__file__)), ".u2net"),
+                    )
+                    from rembg import remove as rembg_remove
+                    clean_bytes = rembg_remove(img_bytes)
+                    # rembg 输出为 RGBA PNG；保存为 PNG 保留透明背景
+                    state.log("INFO", "rembg 抠图成功，已去除原背景（输出透明 PNG）")
+                    img_bytes_to_save = clean_bytes
+                except ImportError:
+                    state.log("WARNING", "rembg 未安装，参考图未抠图（建议 pip install rembg）")
+                    img_bytes_to_save = img_bytes
+                except Exception as rembg_err:
+                    state.log("WARNING", f"rembg 抠图失败，降级使用原图: {type(rembg_err).__name__}: {rembg_err}")
+                    img_bytes_to_save = img_bytes
+
                 ref_path = os.path.join(state.output_dir, "_original_ref.png")
                 with open(ref_path, "wb") as f:
-                    f.write(img_bytes)
+                    f.write(img_bytes_to_save)
                 # 构建可访问的 URL（后端静态文件服务已挂载 /output）
                 ref_img_url = f"http://127.0.0.1:8000/output/_original_ref.png"
                 state.log("INFO", f"参考图已保存: {ref_path} → URL: {ref_img_url}")
@@ -308,14 +336,24 @@ def _run_generation_task(
         client = None
         if not state.dry_run:
             model_enum = ImageModel(state.model)
+            ref_info = ""
+            if ref_img_url:
+                ref_info = (
+                    f", ref_img=有, ref_strength={ref_strength}, "
+                    f"模式=wanx2.1-imageedit 图像编辑(保持商品主体, strength={round(1.0 - ref_strength, 3)})"
+                )
             state.log(
                 "INFO",
                 f"初始化图像客户端: {state.model} "
-                f"({'云端' if ImageModel.is_cloud(model_enum) else '本地'})"
-                + (f", ref_img={'有' if ref_img_url else '无'}" if ref_img_url else "")
+                f"({'云端' if ImageModel.is_cloud(model_enum) else '本地'}){ref_info}"
             )
             try:
-                client = create_image_client(model_enum, state.output_dir, ref_img_url=ref_img_url)
+                client = create_image_client(
+                    model_enum,
+                    state.output_dir,
+                    ref_img_url=ref_img_url,
+                    ref_strength=ref_strength,
+                )
             except Exception as e:
                 state.status = "done"
                 state.end_ts = time.time()
@@ -699,7 +737,7 @@ async def api_generate(req: GenerateRequest):
     # 4. 后台线程执行
     t_th = threading.Thread(
         target=_run_generation_task,
-        args=(state, product, req.extra_negative or "", req.original_image),
+        args=(state, product, req.extra_negative or "", req.original_image, req.ref_strength),
         daemon=True,
     )
     t_th.start()

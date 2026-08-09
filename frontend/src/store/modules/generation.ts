@@ -48,6 +48,8 @@ export const useGenerationStore = defineStore('generation', () => {
   })
   const dryRun = ref(false)
   const extraNegative = ref('')  // 用户自定义负面词（来自模型配置弹窗）
+  // 参考图影响强度（0-1，仅当 originalImage 存在时生效；越大越接近参考图）
+  const refStrength = ref<number>(0.5)
 
   const apiKeyStatus = ref({
     dashscope_configured: false,
@@ -194,13 +196,19 @@ export const useGenerationStore = defineStore('generation', () => {
   // ---------------- 表单校验 ----------------
   function validateForm(): string | null {
     if (!typesStore.hasSelected) return '请先在顶部选择类型（没有合适的去「配置中心」新增）'
-    if (!product.value.title) return '请选择商品标题'
-    if (!product.value.material) return '请选择材质'
-    if (!product.value.spec) return '请选择规格'
-    if (!product.value.color) return '请选择颜色'
     if (selectedCount.value === 0) return '请至少勾选1张图片模板'
-    if (whitelist.value.titles.length > 0 && !whitelist.value.titles.includes(product.value.title)) {
+    // 以下字段均为可选（允许"不设置"），空值跳过白名单校验
+    if (product.value.title && whitelist.value.titles.length > 0 && !whitelist.value.titles.includes(product.value.title)) {
       return `商品标题「${product.value.title}」不在白名单内`
+    }
+    if (product.value.material && whitelist.value.materials.length > 0 && !whitelist.value.materials.includes(product.value.material)) {
+      return `材质「${product.value.material}」不在白名单内`
+    }
+    if (product.value.spec && whitelist.value.specs.length > 0 && !whitelist.value.specs.includes(product.value.spec)) {
+      return `规格「${product.value.spec}」不在白名单内`
+    }
+    if (product.value.color && whitelist.value.colors.length > 0 && !whitelist.value.colors.includes(product.value.color)) {
+      return `颜色「${product.value.color}」不在白名单内`
     }
     return null
   }
@@ -228,6 +236,7 @@ export const useGenerationStore = defineStore('generation', () => {
       extra_negative: extraNegative.value,
       product: product.value,
       original_image: originalImage.value || undefined,
+      ref_strength: originalImage.value ? refStrength.value : undefined,
     }
     const resp = await startGeneration(body)
     taskId.value = resp.task_id
@@ -418,6 +427,7 @@ export const useGenerationStore = defineStore('generation', () => {
     product,
     dryRun,
     extraNegative,
+    refStrength,
     apiKeyStatus,
     taskId,
     taskTypeId,
